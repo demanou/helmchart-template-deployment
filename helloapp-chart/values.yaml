@@ -1,0 +1,13 @@
+# Default values for my-app-chart.
+
+replicaCount: 3
+
+image:
+  repository: us-docker.pkg.dev/google-samples/containers/gke/hello-app  # Replace with your actual image path
+  pullPolicy: IfNotPresent
+  tag: "1.0"                                   # Replace with your actual image tag
+
+service:
+  type: LoadBalancer
+  port: 80                  # The port exposed externally by the GKE LoadBalancer
+  targetPort: 8080          # The container port your application listens on
