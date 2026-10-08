@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CHART: charts/helloapp
+
+jobs:
+  lint:
+    name: Lint & validate chart
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        values: ["", "examples/values-dev.yaml", "examples/values-prod.yaml"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin kubeconform
+
+      - name: helm lint
+        run: helm lint "$CHART" --strict ${{ matrix.values && format('-f {0}', matrix.values) || '' }}
+
+      - name: Render and validate against Kubernetes schemas
+        run: |
+          helm template helloapp "$CHART" ${{ matrix.values && format('-f {0}', matrix.values) || '' }} \
+            | kubeconform -strict -summary -
+
+  install:
+    name: Install on a test cluster (kind)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+
+      - name: Install chart
+        run: |
+          helm install helloapp "$CHART" -f examples/values-dev.yaml \
+            --namespace demo --create-namespace --wait --timeout 3m
+
+      - name: Run helm test
+        run: helm test helloapp --namespace demo --logs
+
+      - name: Upgrade (rolling update) to 3 replicas
+        run: |
+          helm upgrade helloapp "$CHART" -f examples/values-dev.yaml --set replicaCount=3 \
+            --namespace demo --wait --timeout 3m
+          kubectl -n demo get pods
+
+      - name: Debug info
+        if: failure()
+        run: |
+          kubectl -n demo get all
+          kubectl -n demo describe pods

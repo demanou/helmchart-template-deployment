@@ -1,0 +1,91 @@
+# Default values for the helloapp chart.
+# Override them with -f my-values.yaml or --set key=value.
+
+replicaCount: 3
+
+image:
+  repository: us-docker.pkg.dev/google-samples/containers/gke/hello-app
+  pullPolicy: IfNotPresent
+  # Defaults to the chart appVersion ("1.0") when empty
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Port the application listens on inside the container
+containerPort: 8080
+
+service:
+  # LoadBalancer gives an external IP on GKE/EKS/AKS.
+  # Use ClusterIP when exposing the app through an Ingress.
+  type: LoadBalancer
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: helloapp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: helloapp-tls
+  #    hosts:
+  #      - helloapp.example.com
+
+# Health checks: traffic only goes to ready pods; stuck pods are restarted
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 2
+  periodSeconds: 5
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 32Mi
+  limits:
+    memory: 64Mi
+
+# Scale between minReplicas and maxReplicas based on CPU (needs metrics-server).
+# When enabled, replicaCount is ignored.
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Keep at least this many pods running during node maintenance
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Security defaults compatible with the "restricted" Pod Security Standard
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

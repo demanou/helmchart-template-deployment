@@ -1,0 +1,36 @@
+# Run with: helm test <release>
+# Starts a temporary pod that calls the Service and checks the app answers.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "helloapp.fullname" . }}-test-connection"
+  labels:
+    {{- include "helloapp.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: curl
+      image: curlimages/curl:8.16.0
+      command: ["sh", "-c"]
+      args:
+        - curl -sf http://{{ include "helloapp.fullname" . }}:{{ .Values.service.port }}/ | grep "Hello, world!"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          memory: 32Mi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]

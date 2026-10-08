@@ -1,0 +1,19 @@
+{{ include "helloapp.fullname" . }} is deployed in namespace "{{ .Release.Namespace }}".
+
+Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else if eq .Values.service.type "LoadBalancer" }}
+  The external IP can take a minute or two to appear:
+    kubectl get svc {{ include "helloapp.fullname" . }} -n {{ .Release.Namespace }} -w
+
+  Then open: http://<EXTERNAL-IP>:{{ .Values.service.port }}
+{{- else }}
+  kubectl port-forward svc/{{ include "helloapp.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  Then open: http://localhost:8080
+{{- end }}
+
+Check that it works:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
